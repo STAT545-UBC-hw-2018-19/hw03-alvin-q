@@ -11,6 +11,8 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(gapminder))
 ```
 
+I selected some of the suggested tasks, as well as made up some of my own.
+
 Max/Min GDP per capita for all continents
 -----------------------------------------
 
@@ -297,3 +299,117 @@ join_means %>%
 ![](gapminder_hw03_files/figure-markdown_github/unnamed-chunk-14-1.png)
 
 Here, I've made use of `inner_join` and `gather` to change the data frame. Then I used `mutate` and `if_else` (to rename "w\_mean" to "weighted mean by pop"). I finally plot and see that both means increase over time (using geom\_point and geom\_line).
+
+Biggest drop and gain in GDP per capita
+---------------------------------------
+
+Task 5: Find out which country has biggest gain and biggest drop in GDP per capita over a 5 year period for each continent.
+
+First calculate the change each 5 years.
+
+``` r
+change <- gapminder %>%
+  group_by(country) %>%
+  mutate(change = gdpPercap - lag(gdpPercap)) 
+
+change %>%
+  head(20) %>%
+  knitr::kable()
+```
+
+| country     | continent |  year|  lifeExp|       pop|  gdpPercap|      change|
+|:------------|:----------|-----:|--------:|---------:|----------:|-----------:|
+| Afghanistan | Asia      |  1952|   28.801|   8425333|   779.4453|          NA|
+| Afghanistan | Asia      |  1957|   30.332|   9240934|   820.8530|    41.40772|
+| Afghanistan | Asia      |  1962|   31.997|  10267083|   853.1007|    32.24768|
+| Afghanistan | Asia      |  1967|   34.020|  11537966|   836.1971|   -16.90357|
+| Afghanistan | Asia      |  1972|   36.088|  13079460|   739.9811|   -96.21603|
+| Afghanistan | Asia      |  1977|   38.438|  14880372|   786.1134|    46.13225|
+| Afghanistan | Asia      |  1982|   39.854|  12881816|   978.0114|   191.89808|
+| Afghanistan | Asia      |  1987|   40.822|  13867957|   852.3959|  -125.61549|
+| Afghanistan | Asia      |  1992|   41.674|  16317921|   649.3414|  -203.05455|
+| Afghanistan | Asia      |  1997|   41.763|  22227415|   635.3414|   -14.00004|
+| Afghanistan | Asia      |  2002|   42.129|  25268405|   726.7341|    91.39270|
+| Afghanistan | Asia      |  2007|   43.828|  31889923|   974.5803|   247.84628|
+| Albania     | Europe    |  1952|   55.230|   1282697|  1601.0561|          NA|
+| Albania     | Europe    |  1957|   59.280|   1476505|  1942.2842|   341.22811|
+| Albania     | Europe    |  1962|   64.820|   1728137|  2312.8890|   370.60471|
+| Albania     | Europe    |  1967|   66.220|   1984060|  2760.1969|   447.30797|
+| Albania     | Europe    |  1972|   67.690|   2263554|  3313.4222|   553.22526|
+| Albania     | Europe    |  1977|   68.930|   2509048|  3533.0039|   219.58172|
+| Albania     | Europe    |  1982|   70.420|   2780097|  3630.8807|    97.87681|
+| Albania     | Europe    |  1987|   72.000|   3075321|  3738.9327|   108.05201|
+
+Next, group by continent and find the min and max
+
+``` r
+min_max <- change %>%
+  filter(!is.na(change)) %>%
+  group_by(continent) %>%
+  summarise(max = max(change),
+            min = min(change))
+
+min_max %>%
+  knitr::kable()
+```
+
+| continent |        max|          min|
+|:----------|----------:|------------:|
+| Africa    |  12015.721|   -6632.2113|
+| Americas  |   6547.909|   -2169.6412|
+| Asia      |  28452.984|  -50082.3899|
+| Europe    |   9555.102|   -6545.8103|
+| Oceania   |   3747.613|    -643.8664|
+
+After, `gather` and `inner_join` to figure out the country that the changes belonged to.
+
+``` r
+min_max_country <- gather(min_max, key = min_max, value = change, max, min) %>%
+  inner_join(change, by = c("continent", "change")) %>%
+  select(1:4) 
+
+min_max_country %>%
+  knitr::kable()
+```
+
+| continent | min\_max |       change| country             |
+|:----------|:---------|------------:|:--------------------|
+| Africa    | max      |   12015.7209| Libya               |
+| Americas  | max      |    6547.9090| Trinidad and Tobago |
+| Asia      | max      |   28452.9837| Kuwait              |
+| Europe    | max      |    9555.1023| Ireland             |
+| Oceania   | max      |    3747.6127| Australia           |
+| Africa    | min      |   -6632.2113| Gabon               |
+| Americas  | min      |   -2169.6412| Argentina           |
+| Asia      | min      |  -50082.3899| Kuwait              |
+| Europe    | min      |   -6545.8103| Serbia              |
+| Oceania   | min      |    -643.8664| New Zealand         |
+
+Plot of these changes in GDP per capita
+
+``` r
+min_max_country %>%
+  ggplot(aes(x = country, y = change)) +
+  geom_bar(aes(fill = min_max), stat="identity") +
+  scale_fill_manual(values = c("min" = "red", "max" = "darkgreen")) +
+  theme_bw() + 
+  facet_wrap(~ continent, scales = "free") +
+  coord_flip()
+```
+
+![](gapminder_hw03_files/figure-markdown_github/unnamed-chunk-18-1.png)
+
+Here, I've plotted the min and max change in GDP per capita in the 5 year period for each continent and labeled what country experienced that change. I facet the plot by continent and also implement a `coord_flip` since the country names are long. Something I discovered is that Kuwait was the country in Asia that possessed both the max gain and loss in GDP per capita in a 5 year period. Let's plot Kuwait.
+
+``` r
+gapminder %>%
+  filter(country == "Kuwait") %>%
+  ggplot(aes(x = year, y = gdpPercap)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+```
+
+![](gapminder_hw03_files/figure-markdown_github/unnamed-chunk-19-1.png)
+
+By plotting this out, we can see that Kuwait is a country that experienced quite a boom and bust in its economic wealth. This occured in the late 60's and 70's.

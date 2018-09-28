@@ -184,6 +184,66 @@ Here, I've made use of `inner_join` and `gather` to change the data frame. Then 
 
 ## Biggest drop and gain in GDP per capita
 
-Task 5: Find out which country has biggest gain and biggest drop in GDP per capita over a 5 year period.
+Task 5: Find out which country has biggest gain and biggest drop in GDP per capita over a 5 year period for each continent.
 
+First calculate the change each 5 years.
 
+```{r}
+change <- gapminder %>%
+  group_by(country) %>%
+  mutate(change = gdpPercap - lag(gdpPercap)) 
+
+change %>%
+  head(20) %>%
+  knitr::kable()
+```
+
+Next, group by continent and find the min and max
+
+```{r}
+
+min_max <- change %>%
+  filter(!is.na(change)) %>%
+  group_by(continent) %>%
+  summarise(max = max(change),
+            min = min(change))
+
+min_max %>%
+  knitr::kable()
+```
+
+After, `gather` and `inner_join` to figure out the country that the changes belonged to.
+
+```{r}
+min_max_country <- gather(min_max, key = min_max, value = change, max, min) %>%
+  inner_join(change, by = c("continent", "change")) %>%
+  select(1:4) 
+
+min_max_country %>%
+  knitr::kable()
+```
+
+Plot of these changes in GDP per capita
+
+```{r}
+min_max_country %>%
+  ggplot(aes(x = country, y = change)) +
+  geom_bar(aes(fill = min_max), stat="identity") +
+  scale_fill_manual(values = c("min" = "red", "max" = "darkgreen")) +
+  theme_bw() + 
+  facet_wrap(~ continent, scales = "free") +
+  coord_flip()
+```
+
+Here, I've plotted the min and max change in GDP per capita in the 5 year period for each continent and labeled what country experienced that change. I facet the plot by continent and also implement a `coord_flip` since the country names are long. Something I discovered is that Kuwait was the country in Asia that possessed both the max gain and loss in GDP per capita in a 5 year period. Let's plot Kuwait.
+
+```{r}
+gapminder %>%
+  filter(country == "Kuwait") %>%
+  ggplot(aes(x = year, y = gdpPercap)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+```
+
+By plotting this out, we can see that Kuwait is a country that experienced quite a boom and bust in its economic wealth. This occured in the late 60's and 70's.
