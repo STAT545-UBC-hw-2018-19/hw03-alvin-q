@@ -136,8 +136,8 @@ ggplot(gapminder, aes(x = continent, y = gdpPercap)) +
 
 Here, I overlaid a fitter and violin plot. We can see that while the SD for African countries is low, there is a skew to high values. In fact Oceania has the tighest spread between its wealthiest and poorest countries.
 
-Life Expectancy over time
--------------------------
+Life Expectancy over time in each continent
+-------------------------------------------
 
 Task 3: How is life expectancy changing over time on different continents?
 
@@ -165,3 +165,135 @@ gapminder %>%
 ![](gapminder_hw03_files/figure-markdown_github/unnamed-chunk-10-1.png)
 
 To see trends for each continent, instead of lines for each country, I plotted things differently here. We have points for each country and a linear trend line added with `geom_smooth`. Now we can clearly see that for each continent, life expentancy increases over time.
+
+Mean vs Weighted mean Life Expectancy over time
+-----------------------------------------------
+
+Task 4: calculate the world-wide mean life expectancy (normal and weighted) over time
+
+This is the mean life expectancy over time.
+
+``` r
+mean_lifeExp <- gapminder %>%
+  group_by(year) %>%
+  summarise(mean = mean(lifeExp))
+
+mean_lifeExp %>%
+  knitr::kable()
+```
+
+|  year|      mean|
+|-----:|---------:|
+|  1952|  49.05762|
+|  1957|  51.50740|
+|  1962|  53.60925|
+|  1967|  55.67829|
+|  1972|  57.64739|
+|  1977|  59.57016|
+|  1982|  61.53320|
+|  1987|  63.21261|
+|  1992|  64.16034|
+|  1997|  65.01468|
+|  2002|  65.69492|
+|  2007|  67.00742|
+
+This is the weighted mean by population.
+
+``` r
+w_mean_lifeExp <- gapminder %>%
+  group_by(year) %>%
+  summarise(w_mean = weighted.mean(lifeExp, pop))
+
+w_mean_lifeExp %>%
+  knitr::kable()
+```
+
+|  year|   w\_mean|
+|-----:|---------:|
+|  1952|  48.94424|
+|  1957|  52.12189|
+|  1962|  52.32438|
+|  1967|  56.98431|
+|  1972|  59.51478|
+|  1977|  61.23726|
+|  1982|  62.88176|
+|  1987|  64.41635|
+|  1992|  65.64590|
+|  1997|  66.84934|
+|  2002|  67.83904|
+|  2007|  68.91909|
+
+We can compare the difference between the mean and weighted mean by population.
+
+``` r
+inner_join(mean_lifeExp, w_mean_lifeExp, by = "year") %>%
+  mutate(difference = mean - w_mean)%>%
+  knitr::kable()
+```
+
+|  year|      mean|   w\_mean|  difference|
+|-----:|---------:|---------:|-----------:|
+|  1952|  49.05762|  48.94424|    0.113383|
+|  1957|  51.50740|  52.12189|   -0.614484|
+|  1962|  53.60925|  52.32438|    1.284867|
+|  1967|  55.67829|  56.98431|   -1.306017|
+|  1972|  57.64739|  59.51478|   -1.867396|
+|  1977|  59.57016|  61.23726|   -1.667099|
+|  1982|  61.53320|  62.88176|   -1.348558|
+|  1987|  63.21261|  64.41635|   -1.203737|
+|  1992|  64.16034|  65.64590|   -1.485562|
+|  1997|  65.01468|  66.84934|   -1.834667|
+|  2002|  65.69492|  67.83904|   -2.144119|
+|  2007|  67.00742|  68.91909|   -1.911670|
+
+I used `inner_join` and `mutate` to do so. We can also see that generally, the mean is lower than the weighted mean.
+
+We can plot both the mean and weighted mean over time.
+
+``` r
+join_means <- inner_join(mean_lifeExp, w_mean_lifeExp, by = "year") %>%
+  gather(key = mean_type, value = mean, mean, w_mean) %>%
+  mutate(mean_type = if_else(mean_type == "w_mean", "weighted mean by pop", mean_type))
+
+join_means %>%
+  knitr::kable()
+```
+
+|  year| mean\_type           |      mean|
+|-----:|:---------------------|---------:|
+|  1952| mean                 |  49.05762|
+|  1957| mean                 |  51.50740|
+|  1962| mean                 |  53.60925|
+|  1967| mean                 |  55.67829|
+|  1972| mean                 |  57.64739|
+|  1977| mean                 |  59.57016|
+|  1982| mean                 |  61.53320|
+|  1987| mean                 |  63.21261|
+|  1992| mean                 |  64.16034|
+|  1997| mean                 |  65.01468|
+|  2002| mean                 |  65.69492|
+|  2007| mean                 |  67.00742|
+|  1952| weighted mean by pop |  48.94424|
+|  1957| weighted mean by pop |  52.12189|
+|  1962| weighted mean by pop |  52.32438|
+|  1967| weighted mean by pop |  56.98431|
+|  1972| weighted mean by pop |  59.51478|
+|  1977| weighted mean by pop |  61.23726|
+|  1982| weighted mean by pop |  62.88176|
+|  1987| weighted mean by pop |  64.41635|
+|  1992| weighted mean by pop |  65.64590|
+|  1997| weighted mean by pop |  66.84934|
+|  2002| weighted mean by pop |  67.83904|
+|  2007| weighted mean by pop |  68.91909|
+
+``` r
+join_means %>%
+  ggplot(aes(x = year, y = mean, colour = mean_type)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+```
+
+![](gapminder_hw03_files/figure-markdown_github/unnamed-chunk-14-1.png)
+
+Here, I've made use of `inner_join` and `gather` to change the data frame. Then I used `mutate` and `if_else` (to rename "w\_mean" to "weighted mean by pop"). I finally plot and see that both means increase over time (using geom\_point and geom\_line).

@@ -14,6 +14,8 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(gapminder))
 ```
 
+I selected some of the suggested tasks, as well as made up some of my own.
+
 ## Max/Min GDP per capita for all continents
 
 Task 1: Get the maximum and minimum of GDP per capita for all continents.
@@ -125,5 +127,63 @@ gapminder %>%
 
 To see trends for each continent, instead of lines for each country, I plotted things differently here. We have points for each country and a linear trend line added with `geom_smooth`. Now we can clearly see that for each continent, life expentancy increases over time.
 
-## Mean vs Weighted mean Life Expency over time
+## Mean vs Weighted mean Life Expectancy over time
+
+Task 4: calculate the world-wide mean life expectancy (normal and weighted) over time
+
+This is the mean life expectancy over time.
+
+```{r}
+mean_lifeExp <- gapminder %>%
+  group_by(year) %>%
+  summarise(mean = mean(lifeExp))
+
+mean_lifeExp %>%
+  knitr::kable()
+```
+
+This is the weighted mean by population.
+
+```{r}
+w_mean_lifeExp <- gapminder %>%
+  group_by(year) %>%
+  summarise(w_mean = weighted.mean(lifeExp, pop))
+
+w_mean_lifeExp %>%
+  knitr::kable()
+```
+
+We can compare the difference between the mean and weighted mean by population.
+
+```{r}
+inner_join(mean_lifeExp, w_mean_lifeExp, by = "year") %>%
+  mutate(difference = mean - w_mean)%>%
+  knitr::kable()
+```
+
+I used `inner_join` and `mutate` to do so. We can also see that generally, the mean is lower than the weighted mean.
+
+We can plot both the mean and weighted mean over time.
+
+```{r}
+join_means <- inner_join(mean_lifeExp, w_mean_lifeExp, by = "year") %>%
+  gather(key = mean_type, value = mean, mean, w_mean) %>%
+  mutate(mean_type = if_else(mean_type == "w_mean", "weighted mean by pop", mean_type))
+
+join_means %>%
+  knitr::kable()
+
+join_means %>%
+  ggplot(aes(x = year, y = mean, colour = mean_type)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+```
+
+Here, I've made use of `inner_join` and `gather` to change the data frame. Then I used `mutate` and `if_else` (to rename "w_mean" to "weighted mean by pop"). I finally plot and see that both means increase over time (using geom_point and geom_line).
+
+## Biggest drop and gain in GDP per capita
+
+Task 5: Find out which country has biggest gain and biggest drop in GDP per capita over a 5 year period.
+
 
